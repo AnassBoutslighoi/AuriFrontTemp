@@ -57,3 +57,30 @@
     @apply bg-background text-foreground;
   }
 }
+
+
+/* RTL/LTR helpers and logical spacing */
+
+/* Force Clerk widgets to render LTR when app dir is RTL (avoids punctuation flipping on English UI) */
+[dir="rtl"] .clerk-ltr {
+  direction: ltr;
+  text-align: left;
+}
+
+/* Icon placed at the start of a label/text: adds logical margin */
+.icon-start {
+  margin-right: 0.5rem;
+}
+[dir="rtl"] .icon-start {
+  margin-right: 0;
+  margin-left: 0.5rem;
+}
+
+/* Generic logical inline gap for small chips/badges following text */
+.gap-start {
+  margin-left: 0.5rem;
+}
+[dir="rtl"] .gap-start {
+  margin-left: 0;
+  margin-right: 0.5rem;
+}

@@ -1,13 +1,16 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { CheckCircle2, Circle } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
 export function OnboardingProgress() {
+  const { t } = useTranslation()
+
   const steps = [
-    { title: "Create account", completed: true },
-    { title: "Connect your store", completed: true },
-    { title: "Configure your chatbot", completed: true },
-    { title: "Test your chatbot", completed: false },
-    { title: "Go live", completed: false },
+    { title: t("onboarding.steps.createAccount"), completed: true },
+    { title: t("onboarding.steps.connectStore"), completed: true },
+    { title: t("onboarding.steps.configureChatbot"), completed: true },
+    { title: t("onboarding.steps.testChatbot"), completed: false },
+    { title: t("onboarding.steps.goLive"), completed: false },
   ]
 
   const completedSteps = steps.filter((step) => step.completed).length
@@ -16,13 +19,13 @@ export function OnboardingProgress() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Getting Started</CardTitle>
-        <CardDescription>Complete these steps to fully set up your chatbot</CardDescription>
+        <CardTitle className="text-start">{t("onboarding.title")}</CardTitle>
+        <CardDescription className="text-start">{t("onboarding.description")}</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="mb-4">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium">Progress</span>
+            <span className="text-sm font-medium">{t("onboarding.progress")}</span>
             <span className="text-sm font-medium">{progress}%</span>
           </div>
           <div className="mt-2 h-2 w-full rounded-full bg-secondary">

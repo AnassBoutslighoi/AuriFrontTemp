@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/chart"
 import { Calendar, Download, BrainCircuit, MessageSquare, Search, Clock, Zap } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { useDailyUsage, useTopQueries, useSatisfaction, useLlmPerformance } from "@/hooks/analytics"
 
 const dailyData = [
   { date: "2023-05-01", messages: 145, conversations: 32 },
@@ -72,6 +73,10 @@ const modelUsageData = [
 const COLORS = ["#8884d8", "#82ca9d", "#ffc658", "#ff8042", "#ff6b6b"]
 
 export function AnalyticsPage() {
+  const { data: daily = dailyData } = useDailyUsage()
+  const { data: topQueries = topQueriesData } = useTopQueries(10)
+  const { data: satisfaction = satisfactionData } = useSatisfaction()
+  const { data: llmPerf = llmPerformanceData } = useLlmPerformance()
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -109,8 +114,10 @@ export function AnalyticsPage() {
             <MessageSquare className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">1,248</div>
-            <p className="text-xs text-muted-foreground">+12% from last month</p>
+            <div className="text-2xl font-bold">
+              {daily.reduce((acc, d) => acc + (d.conversations || 0), 0).toLocaleString()}
+            </div>
+            <p className="text-xs text-muted-foreground">Period total</p>
           </CardContent>
         </Card>
         <Card>
@@ -119,8 +126,10 @@ export function AnalyticsPage() {
             <MessageSquare className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">8,549</div>
-            <p className="text-xs text-muted-foreground">+18% from last month</p>
+            <div className="text-2xl font-bold">
+              {daily.reduce((acc, d) => acc + (d.messages || 0), 0).toLocaleString()}
+            </div>
+            <p className="text-xs text-muted-foreground">Period total</p>
           </CardContent>
         </Card>
         <Card>
@@ -129,8 +138,14 @@ export function AnalyticsPage() {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">1.2s</div>
-            <p className="text-xs text-muted-foreground">-0.3s from last month</p>
+            <div className="text-2xl font-bold">
+              {(() => {
+                if (!llmPerf.length) return "—"
+                const avg = llmPerf.reduce((a, d) => a + (d.latency || 0), 0) / llmPerf.length
+                return `${avg.toFixed(1)}s`
+              })()}
+            </div>
+            <p className="text-xs text-muted-foreground">Average latency</p>
           </CardContent>
         </Card>
         <Card>
@@ -139,8 +154,16 @@ export function AnalyticsPage() {
             <MessageSquare className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">92%</div>
-            <p className="text-xs text-muted-foreground">+3% from last month</p>
+            <div className="text-2xl font-bold">
+              {(() => {
+                if (!satisfaction.length) return "—"
+                const total = satisfaction.reduce((a, d) => a + (d.value || 0), 0) || 1
+                const vs = satisfaction.find((x) => x.name.toLowerCase().includes("very satisfied"))?.value || 0
+                const s = satisfaction.find((x) => x.name.toLowerCase() === "satisfied")?.value || 0
+                return `${Math.round(((vs + s) / total) * 100)}%`
+              })()}
+            </div>
+            <p className="text-xs text-muted-foreground">Satisfied or very satisfied</p>
           </CardContent>
         </Card>
       </div>
@@ -160,11 +183,11 @@ export function AnalyticsPage() {
               <CardDescription>Daily messages and conversations over time</CardDescription>
             </CardHeader>
             <CardContent className="h-[400px]">
-              <ChartContainer className="h-full w-full" data={dailyData}>
+              <ChartContainer className="h-full w-full" data={daily}>
                 <Chart>
                   <XAxis
                     dataKey="date"
-                    tickFormatter={(value) => {
+                    tickFormatter={(value: any) => {
                       const date = new Date(value)
                       return `${date.getDate()}/${date.getMonth() + 1}`
                     }}
@@ -208,7 +231,7 @@ export function AnalyticsPage() {
               <CardDescription>Most common topics customers ask about</CardDescription>
             </CardHeader>
             <CardContent className="h-[400px]">
-              <ChartContainer className="h-full w-full" data={topQueriesData}>
+              <ChartContainer className="h-full w-full" data={topQueries}>
                 <Chart>
                   <XAxis dataKey="query" />
                   <YAxis />
@@ -244,11 +267,11 @@ export function AnalyticsPage() {
                 <CardDescription>Response time and token usage</CardDescription>
               </CardHeader>
               <CardContent className="h-[400px]">
-                <ChartContainer className="h-full w-full" data={llmPerformanceData}>
+                <ChartContainer className="h-full w-full" data={llmPerf}>
                   <Chart>
                     <XAxis
                       dataKey="date"
-                      tickFormatter={(value) => {
+                      tickFormatter={(value: any) => {
                         const date = new Date(value)
                         return `${date.getDate()}/${date.getMonth() + 1}`
                       }}
@@ -373,7 +396,7 @@ export function AnalyticsPage() {
               <CardDescription>Satisfaction ratings from customer feedback</CardDescription>
             </CardHeader>
             <CardContent className="h-[400px]">
-              <ChartContainer className="h-full w-full" data={satisfactionData}>
+              <ChartContainer className="h-full w-full" data={satisfaction}>
                 <Chart>
                   <PieChart>
                     <Pie dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={120} fill="#8884d8" label />

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -184,7 +184,10 @@ function StoreCard({ store }: { store: Store }) {
             {store.platform === "youcan" && <StoreIcon className="h-5 w-5 text-primary" />}
             <CardTitle>{store.name}</CardTitle>
           </div>
-          <Badge variant={store.status === "connected" ? "success" : "destructive"}>
+          <Badge
+            variant={store.status === "connected" ? "secondary" : "destructive"}
+            className={store.status === "connected" ? "bg-green-500 text-white border-transparent" : undefined}
+          >
             {store.status === "connected" ? "Connected" : "Error"}
           </Badge>
         </div>

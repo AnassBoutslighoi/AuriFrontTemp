@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Bot, Send, User, Loader2, BrainCircuit } from "lucide-react"
+import { useChat } from "@/hooks/chat"
+import { toast } from "@/components/ui/use-toast"
 
 interface ChatMessage {
   id: string
@@ -30,16 +32,17 @@ export function ChatTestInterface({ greeting, model = "gpt-4o" }: ChatTestInterf
     },
   ])
   const [input, setInput] = useState("")
-  const [isTyping, setIsTyping] = useState(false)
+  const { mutateAsync: sendChat, isPending } = useChat()
 
-  const handleSendMessage = () => {
-    if (!input.trim()) return
+  const handleSendMessage = async () => {
+    const text = input.trim()
+    if (!text) return
 
     // Add user message
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
       role: "user",
-      content: input,
+      content: text,
       timestamp: new Date(),
     }
     setMessages((prev) => [...prev, userMessage])
@@ -58,51 +61,26 @@ export function ChatTestInterface({ greeting, model = "gpt-4o" }: ChatTestInterf
       },
     ])
 
-    // Simulate bot response after a delay
-    setTimeout(() => {
+    try {
+      const res = await sendChat({ message: text, model })
       // Remove thinking message
       setMessages((prev) => prev.filter((msg) => msg.id !== thinkingId))
-
-      // Generate response based on user input
-      let botResponse = ""
-      const userInput = input.toLowerCase()
-
-      if (userInput.includes("product") || userInput.includes("looking for")) {
-        botResponse =
-          "I can help you find products in our store. Based on your query, I'd recommend our bestselling items in that category. Would you like to see some specific options?"
-      } else if (userInput.includes("price") || userInput.includes("cost")) {
-        botResponse =
-          "Our products range in price depending on features and quality. The specific item you're looking at is $49.99. We also offer discounts for first-time customers!"
-      } else if (userInput.includes("shipping") || userInput.includes("delivery")) {
-        botResponse =
-          "We offer free shipping on orders over $50. Standard shipping takes 3-5 business days, while express shipping (available for $9.99) delivers within 1-2 business days."
-      } else if (userInput.includes("return") || userInput.includes("refund")) {
-        botResponse =
-          "Our return policy allows returns within 30 days of purchase. We offer full refunds for unused items in original packaging. Would you like me to help you start a return process?"
-      } else if (userInput.includes("discount") || userInput.includes("coupon")) {
-        botResponse =
-          "I can offer you a special 10% discount code for your first purchase! Use code WELCOME10 at checkout. This code is valid for the next 24 hours."
-      } else {
-        const botResponses = [
-          "I can help you find products in our store. What are you looking for today?",
-          "We have several options available. Would you like to see our bestsellers?",
-          "Is there anything specific you're interested in?",
-          "I can check the status of your order if you provide your order number.",
-          "Let me know if you have any questions about our products or policies.",
-        ]
-        botResponse = botResponses[Math.floor(Math.random() * botResponses.length)]
-      }
 
       const botMessage: ChatMessage = {
         id: (Date.now() + 2).toString(),
         role: "bot",
-        content: botResponse,
+        content: res.reply,
         timestamp: new Date(),
       }
-
       setMessages((prev) => [...prev, botMessage])
-      setIsTyping(false)
-    }, 2000)
+    } catch (e: any) {
+      setMessages((prev) => prev.filter((msg) => msg.id !== thinkingId))
+      toast({
+        title: "Chat failed",
+        description: e?.message || "Unexpected error",
+        variant: "destructive",
+      })
+    }
   }
 
   return (
@@ -180,8 +158,8 @@ export function ChatTestInterface({ greeting, model = "gpt-4o" }: ChatTestInterf
               }
             }}
           />
-          <Button size="icon" onClick={handleSendMessage} disabled={!input.trim() || isTyping}>
-            <Send className="h-4 w-4" />
+          <Button size="icon" onClick={handleSendMessage} disabled={!input.trim() || isPending}>
+            {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </Button>
         </div>
       </div>
