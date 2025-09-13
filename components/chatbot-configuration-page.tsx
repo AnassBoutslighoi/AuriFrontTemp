@@ -13,6 +13,7 @@ import { ChatTestInterface } from "@/components/chat-test-interface"
 import { Slider } from "@/components/ui/slider"
 import { Bot, BrainCircuit, Globe, MessageSquare, Settings, Sparkles, Zap } from "lucide-react"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+import { useSearchParams } from "next/navigation"
 
 export function ChatbotConfigurationPage() {
   const [greeting, setGreeting] = useState("Hello! How can I help you with your shopping today?")
@@ -24,6 +25,14 @@ export function ChatbotConfigurationPage() {
     "You are a helpful e-commerce assistant. Your goal is to help customers find products, answer questions about shipping and returns, and provide a pleasant shopping experience. Be friendly, concise, and helpful.",
   )
 
+  const searchParams = useSearchParams()
+  const initialTab = (searchParams.get("tab") ?? "general") as
+    | "general"
+    | "language"
+    | "llm"
+    | "features"
+    | "test"
+
   return (
     <div className="space-y-6">
       <div>
@@ -31,7 +40,7 @@ export function ChatbotConfigurationPage() {
         <p className="text-muted-foreground">Customize your AI chatbot's behavior, appearance, and LLM settings.</p>
       </div>
 
-      <Tabs defaultValue="general">
+      <Tabs defaultValue={initialTab}>
         <TabsList className="grid w-full grid-cols-5 lg:w-[750px]">
           <TabsTrigger value="general">
             <Bot className="mr-2 h-4 w-4" />
@@ -294,7 +303,7 @@ export function ChatbotConfigurationPage() {
                           className="font-mono text-sm"
                         />
                         <p className="text-xs text-muted-foreground">
-                          Template used when searching for products. Use {{ query }} as placeholder.
+                          Template used when searching for products. Use <code>{"{{ query }}"}</code> as placeholder.
                         </p>
                       </div>
                     </AccordionContent>

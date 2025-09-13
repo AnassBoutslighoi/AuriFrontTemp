@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
-import { Plus, Search, MessageSquare, BrainCircuit, ShoppingBag } from "lucide-react"
+import { Plus, Search, MessageSquare, ShoppingBag } from "lucide-react"
 import Link from "next/link"
 
 // Sample chatbot data
@@ -203,13 +203,6 @@ function ChatbotCard({ bot }: { bot: any }) {
       </CardHeader>
       <CardContent>
         <div className="space-y-2 text-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Model:</span>
-            <div className="flex items-center gap-1">
-              <BrainCircuit className="h-3 w-3" />
-              <span className="font-medium">Custom LLM</span>
-            </div>
-          </div>
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Messages today:</span>
             <span className="font-medium">{bot.messagesPerDay}</span>

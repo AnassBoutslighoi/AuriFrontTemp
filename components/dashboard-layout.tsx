@@ -23,7 +23,6 @@ import {
   LayoutDashboard,
   Store,
   MessageSquare,
-  History,
   BarChart,
   CreditCard,
   Settings,
@@ -138,14 +137,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                       <Link href="/chatbots">
                         <MessageSquare />
                         <span>{t("app.chatbots")}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={pathname === "/chat-history"}>
-                      <Link href="/chat-history">
-                        <History />
-                        <span>{t("app.chatHistory")}</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

@@ -25,8 +25,14 @@ async function fetchJSONOr<T>(url: string, orValue: T, init?: RequestInit): Prom
 export type AnalyticsOverview = {
   messagesToday: number;
   activeBots: number;
+  // Legacy fields kept for backward compatibility; not used in MVP cards
   planUsagePct: number;
   customLlmRequests: number;
+
+  // MVP-focused metrics
+  conversationsToday?: number;
+  avgResponseTimeSec?: number;
+  resolutionRatePct?: number;
 };
 
 export function useAnalyticsOverview() {
@@ -38,6 +44,9 @@ export function useAnalyticsOverview() {
         activeBots: 0,
         planUsagePct: 0,
         customLlmRequests: 0,
+        conversationsToday: 0,
+        avgResponseTimeSec: 0,
+        resolutionRatePct: undefined,
       }),
     staleTime: 30_000,
     retry: 1,

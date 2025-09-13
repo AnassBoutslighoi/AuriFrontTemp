@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { N8N_BASE } from "@/lib/config";
 
-async function proxy(req: NextRequest, params: { path?: string[] }) {
+async function proxy(req: NextRequest, paramsPromise: Promise<{ path?: string[] }>) {
   // In some Clerk versions, auth() can be async-typed; await it and then call getToken()
   const authObj = await auth();
   const token = await authObj.getToken();
@@ -11,7 +11,8 @@ async function proxy(req: NextRequest, params: { path?: string[] }) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const segments = (params.path ?? []).join("/");
+  const { path = [] } = await paramsPromise;
+  const segments = path.join("/");
   const target = `${N8N_BASE}/${segments}${req.nextUrl.search}`;
 
   // Clone headers and inject auth
@@ -83,21 +84,21 @@ async function proxy(req: NextRequest, params: { path?: string[] }) {
   });
 }
 
-export async function GET(req: NextRequest, { params }: { params: { path?: string[] } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ path?: string[] }> }) {
   return proxy(req, params);
 }
-export async function POST(req: NextRequest, { params }: { params: { path?: string[] } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ path?: string[] }> }) {
   return proxy(req, params);
 }
-export async function PUT(req: NextRequest, { params }: { params: { path?: string[] } }) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ path?: string[] }> }) {
   return proxy(req, params);
 }
-export async function PATCH(req: NextRequest, { params }: { params: { path?: string[] } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ path?: string[] }> }) {
   return proxy(req, params);
 }
-export async function DELETE(req: NextRequest, { params }: { params: { path?: string[] } }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ path?: string[] }> }) {
   return proxy(req, params);
 }
-export async function OPTIONS(req: NextRequest, { params }: { params: { path?: string[] } }) {
+export async function OPTIONS(req: NextRequest, { params }: { params: Promise<{ path?: string[] }> }) {
   return proxy(req, params);
 }
