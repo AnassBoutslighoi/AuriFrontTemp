@@ -1,12 +1,15 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
+import Link from "next/link"
+import { useTranslation } from "react-i18next"
+
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { CheckCircle2, RefreshCw, ShoppingBag, ShoppingCart, Store, Plus, MessageSquare } from "lucide-react"
+import { CheckCircle2, RefreshCw, ShoppingBag, ShoppingCart, Store as StoreIcon, Plus, MessageSquare } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -19,149 +22,106 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
-import Link from "next/link"
 
-// Sample store data
-const storesData = {
-  "store-1": {
-    id: "store-1",
-    name: "Fashion Boutique",
-    url: "fashionboutique.com",
-    platform: "shopify",
-    status: "connected",
-    products: 128,
-    categories: 12,
-    orders: 56,
-    lastSync: "12 minutes ago",
-    chatbots: [
-      { id: "bot-1", name: "Fashion Assistant", status: "active" },
-      { id: "bot-2", name: "Order Helper", status: "active" },
-    ],
-  },
-  "store-2": {
-    id: "store-2",
-    name: "Tech Gadgets",
-    url: "techgadgets.com",
-    platform: "woocommerce",
-    status: "connected",
-    products: 256,
-    categories: 18,
-    orders: 89,
-    lastSync: "1 hour ago",
-    chatbots: [{ id: "bot-3", name: "Tech Support", status: "active" }],
-  },
-  "store-3": {
-    id: "store-3",
-    name: "Home Decor",
-    url: "homedecor.com",
-    platform: "youcan",
-    status: "connected",
-    products: 89,
-    categories: 8,
-    orders: 32,
-    lastSync: "30 minutes ago",
-    chatbots: [{ id: "bot-4", name: "Decor Assistant", status: "active" }],
-  },
-  "store-4": {
-    id: "store-4",
-    name: "Sports Equipment",
-    url: "sportsequipment.com",
-    platform: "shopify",
-    status: "error",
-    products: 175,
-    categories: 15,
-    orders: 67,
-    lastSync: "Failed 2 hours ago",
-    chatbots: [],
-  },
-}
+import { useStore } from "@/hooks/stores"
+import { useStoreChatbots } from "@/hooks/chatbots"
 
 export function StoreDetailPage({ storeId }: { storeId: string }) {
+  const { t } = useTranslation()
   const [isAddChatbotOpen, setIsAddChatbotOpen] = useState(false)
 
-  // Get store data based on storeId
-  const store = storesData[storeId as keyof typeof storesData] || {
-    id: storeId,
-    name: "Unknown Store",
-    url: "unknown.com",
-    platform: "unknown",
-    status: "error",
-    products: 0,
-    categories: 0,
-    orders: 0,
-    lastSync: "Never",
-    chatbots: [],
-  }
+  const { data: store } = useStore(storeId)
+  const { data: chatbots = [] } = useStoreChatbots(storeId)
 
-  const getPlatformIcon = (platform: string) => {
-    switch (platform) {
+  const name = store?.name || t("stores.unknown", { defaultValue: "Unknown Store" })
+  const url = store?.url || "—"
+  const platform = store?.platform || "unknown"
+  const products = typeof store?.products === "number" ? store?.products : 0
+  const lastSync = store?.lastSync || "—"
+  const status = store?.status || "pending"
+
+  function getPlatformIcon(p: string) {
+    switch (p) {
       case "shopify":
         return <ShoppingBag className="h-5 w-5" />
       case "woocommerce":
         return <ShoppingCart className="h-5 w-5" />
       case "youcan":
-        return <Store className="h-5 w-5" />
+        return <StoreIcon className="h-5 w-5" />
       default:
-        return <Store className="h-5 w-5" />
+        return <StoreIcon className="h-5 w-5" />
     }
   }
+
+  const headerBadge =
+    status === "connected" ? (
+      <Badge variant="secondary" className="bg-green-500 text-white border-transparent">
+        {t("stores.connected", { defaultValue: "Connected" })}
+      </Badge>
+    ) : status === "error" ? (
+      <Badge variant="destructive">{t("common.error", { defaultValue: "Error" })}</Badge>
+    ) : (
+      <Badge variant="outline">{t("common.pending", { defaultValue: "Pending" })}</Badge>
+    )
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-            {getPlatformIcon(store.platform)}
+            {getPlatformIcon(platform)}
           </div>
           <div>
-            <h2 className="text-3xl font-bold tracking-tight">{store.name}</h2>
+            <h2 className="text-3xl font-bold tracking-tight">{name}</h2>
             <p className="text-muted-foreground">
-              {store.url} • {store.platform.charAt(0).toUpperCase() + store.platform.slice(1)}
+              {url} • {platform.charAt(0).toUpperCase() + platform.slice(1)}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline">
             <RefreshCw className="mr-2 h-4 w-4" />
-            Sync Store
+            {t("stores.syncNow", { defaultValue: "Sync Store" })}
           </Button>
           <Dialog open={isAddChatbotOpen} onOpenChange={setIsAddChatbotOpen}>
             <DialogTrigger asChild>
               <Button>
                 <Plus className="mr-2 h-4 w-4" />
-                Add Chatbot
+                {t("chatbots.add", { defaultValue: "Add Chatbot" })}
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Create New Chatbot</DialogTitle>
-                <DialogDescription>Create a new chatbot for {store.name}.</DialogDescription>
+                <DialogTitle>{t("chatbots.createTitle", { defaultValue: "Create New Chatbot" })}</DialogTitle>
+                <DialogDescription>
+                  {t("chatbots.createForStore", { defaultValue: "Create a new chatbot for {{name}}.", name })}
+                </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="bot-name">Chatbot Name</Label>
+                  <Label htmlFor="bot-name">{t("chatbots.name", { defaultValue: "Chatbot Name" })}</Label>
                   <Input id="bot-name" placeholder="Product Assistant" />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="bot-purpose">Primary Purpose</Label>
+                  <Label htmlFor="bot-purpose">{t("chatbots.primaryPurpose", { defaultValue: "Primary Purpose" })}</Label>
                   <Select defaultValue="product-assistant">
                     <SelectTrigger id="bot-purpose">
-                      <SelectValue placeholder="Select purpose" />
+                      <SelectValue placeholder={t("chatbots.selectPurpose", { defaultValue: "Select purpose" })} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="product-assistant">Product Assistant</SelectItem>
-                      <SelectItem value="customer-support">Customer Support</SelectItem>
-                      <SelectItem value="order-tracking">Order Tracking</SelectItem>
-                      <SelectItem value="general-purpose">General Purpose</SelectItem>
+                      <SelectItem value="product-assistant">{t("chatbots.purpose.productAssistant", { defaultValue: "Product Assistant" })}</SelectItem>
+                      <SelectItem value="customer-support">{t("chatbots.purpose.customerSupport", { defaultValue: "Customer Support" })}</SelectItem>
+                      <SelectItem value="order-tracking">{t("chatbots.purpose.orderTracking", { defaultValue: "Order Tracking" })}</SelectItem>
+                      <SelectItem value="general-purpose">{t("chatbots.purpose.generalPurpose", { defaultValue: "General Purpose" })}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsAddChatbotOpen(false)}>
-                  Cancel
+                  {t("common.cancel", { defaultValue: "Cancel" })}
                 </Button>
-                <Button onClick={() => setIsAddChatbotOpen(false)}>Create Chatbot</Button>
+                <Button onClick={() => setIsAddChatbotOpen(false)}>{t("chatbots.create", { defaultValue: "Create Chatbot" })}</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -170,103 +130,71 @@ export function StoreDetailPage({ storeId }: { storeId: string }) {
 
       <Tabs defaultValue="overview">
         <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="chatbots">Chatbots</TabsTrigger>
-          <TabsTrigger value="catalog">Catalog</TabsTrigger>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
+          <TabsTrigger value="overview">{t("stores.overview", { defaultValue: "Overview" })}</TabsTrigger>
+          <TabsTrigger value="chatbots">{t("app.chatbots", { defaultValue: "Chatbots" })}</TabsTrigger>
+          <TabsTrigger value="catalog">{t("stores.catalog", { defaultValue: "Catalog" })}</TabsTrigger>
+          <TabsTrigger value="settings">{t("stores.settings", { defaultValue: "Settings" })}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4 pt-4">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Products</CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-medium">{t("stores.metrics.products", { defaultValue: "Products" })}</CardTitle>
+                  {headerBadge}
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{store.products}</div>
-                <p className="text-xs text-muted-foreground">Last synced: {store.lastSync}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Categories</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{store.categories}</div>
-                <p className="text-xs text-muted-foreground">Last synced: {store.lastSync}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Orders</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{store.orders}</div>
-                <p className="text-xs text-muted-foreground">Last synced: {store.lastSync}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Chatbots</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{store.chatbots.length}</div>
+                <div className="text-2xl font-bold">{products}</div>
                 <p className="text-xs text-muted-foreground">
-                  {store.chatbots.length > 0 ? "All active" : "No chatbots"}
+                  {t("stores.lastSynced", { defaultValue: "Last synced" })}: {lastSync}
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">{t("stores.metrics.platform", { defaultValue: "Platform" })}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold capitalize">{platform}</div>
+                <p className="text-xs text-muted-foreground">{t("stores.url", { defaultValue: "URL" })}: {url}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">{t("stores.metrics.sync", { defaultValue: "Sync Status" })}</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium">{t("stores.catalog", { defaultValue: "Catalog" })}</p>
+                  <p className="text-sm font-medium">—</p>
+                </div>
+                <Progress value={products ? 100 : 0} />
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  <span>{t("stores.syncedProducts", { defaultValue: "Products synced", count: products })}</span>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">{t("stores.metrics.chatbots", { defaultValue: "Chatbots" })}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{chatbots.length}</div>
+                <p className="text-xs text-muted-foreground">
+                  {chatbots.length > 0 ? t("stores.allActive", { defaultValue: "All active" }) : t("stores.none", { defaultValue: "None" })}
                 </p>
               </CardContent>
             </Card>
           </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Sync Status</CardTitle>
-              <CardDescription>Current status of your store data synchronization.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium">Catalog Sync</p>
-                  <p className="text-sm font-medium">100%</p>
-                </div>
-                <Progress value={100} />
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <CheckCircle2 className="h-4 w-4 text-green-500" />
-                  <span>All {store.products} products synced successfully</span>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium">Categories Sync</p>
-                  <p className="text-sm font-medium">100%</p>
-                </div>
-                <Progress value={100} />
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <CheckCircle2 className="h-4 w-4 text-green-500" />
-                  <span>All {store.categories} categories synced successfully</span>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium">Orders Sync</p>
-                  <p className="text-sm font-medium">100%</p>
-                </div>
-                <Progress value={100} />
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <CheckCircle2 className="h-4 w-4 text-green-500" />
-                  <span>All {store.orders} recent orders synced successfully</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </TabsContent>
 
         <TabsContent value="chatbots" className="space-y-4 pt-4">
-          {store.chatbots.length > 0 ? (
+          {chatbots.length > 0 ? (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {store.chatbots.map((bot) => (
+              {chatbots.map((bot) => (
                 <Card key={bot.id}>
                   <CardHeader>
                     <div className="flex items-center justify-between">
@@ -276,35 +204,31 @@ export function StoreDetailPage({ storeId }: { storeId: string }) {
                       </div>
                       <Badge
                         variant="outline"
-                        className="bg-green-50 text-green-700 dark:bg-green-900 dark:text-green-300"
+                        className={(bot.status || "active") === "active" ? "bg-green-50 text-green-700 dark:bg-green-900 dark:text-green-300" : undefined}
                       >
-                        Active
+                        {String(bot.status || "active").replace(/^\w/, (c) => c.toUpperCase())}
                       </Badge>
                     </div>
-                    <CardDescription>Connected to {store.name}</CardDescription>
+                    <CardDescription>{t("chatbots.connectedTo", { defaultValue: "Connected to {{name}}", name })}</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2 text-sm">
                       <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">Model:</span>
-                        <span className="font-medium">Custom LLM</span>
+                        <span className="text-muted-foreground">{t("chatbots.metrics.messagesToday", { defaultValue: "Messages today:" })}</span>
+                        <span className="font-medium">{bot.messagesPerDay ?? 0}</span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">Messages today:</span>
-                        <span className="font-medium">124</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">Avg. response time:</span>
-                        <span className="font-medium">1.2s</span>
+                        <span className="text-muted-foreground">{t("chatbots.metrics.avgResponse", { defaultValue: "Avg. response time:" })}</span>
+                        <span className="font-medium">{bot.responseTime || "—"}</span>
                       </div>
                     </div>
                   </CardContent>
                   <CardFooter className="flex justify-between gap-2">
                     <Button variant="outline" className="flex-1">
-                      Test
+                      {t("chatbots.test", { defaultValue: "Test" })}
                     </Button>
                     <Button asChild className="flex-1">
-                      <Link href={`/chatbots/${bot.id}`}>Configure</Link>
+                      <Link href={`/chatbots/${bot.id}`}>{t("chatbots.configure", { defaultValue: "Configure" })}</Link>
                     </Button>
                   </CardFooter>
                 </Card>
@@ -313,9 +237,9 @@ export function StoreDetailPage({ storeId }: { storeId: string }) {
                 <div className="mb-4 rounded-full bg-primary/10 p-3">
                   <Plus className="h-6 w-6 text-primary" />
                 </div>
-                <h3 className="mb-1 text-lg font-medium">Add New Chatbot</h3>
-                <p className="mb-4 text-center text-sm text-muted-foreground">Create another chatbot for this store</p>
-                <Button onClick={() => setIsAddChatbotOpen(true)}>Create Chatbot</Button>
+                <h3 className="mb-1 text-lg font-medium">{t("chatbots.addNew", { defaultValue: "Add New Chatbot" })}</h3>
+                <p className="mb-4 text-center text-sm text-muted-foreground">{t("chatbots.addNewDesc", { defaultValue: "Create another chatbot for this store" })}</p>
+                <Button onClick={() => setIsAddChatbotOpen(true)}>{t("chatbots.create", { defaultValue: "Create Chatbot" })}</Button>
               </Card>
             </div>
           ) : (
@@ -323,11 +247,11 @@ export function StoreDetailPage({ storeId }: { storeId: string }) {
               <div className="mb-4 rounded-full bg-primary/10 p-4">
                 <MessageSquare className="h-8 w-8 text-primary" />
               </div>
-              <h3 className="mb-2 text-xl font-medium">No Chatbots Yet</h3>
+              <h3 className="mb-2 text-xl font-medium">{t("chatbots.noneTitle", { defaultValue: "No Chatbots Yet" })}</h3>
               <p className="mb-6 text-center text-muted-foreground">
-                Create your first chatbot for this store to start engaging with customers.
+                {t("chatbots.noneDesc", { defaultValue: "Create your first chatbot for this store to start engaging with customers." })}
               </p>
-              <Button onClick={() => setIsAddChatbotOpen(true)}>Create Your First Chatbot</Button>
+              <Button onClick={() => setIsAddChatbotOpen(true)}>{t("chatbots.createFirst", { defaultValue: "Create Your First Chatbot" })}</Button>
             </Card>
           )}
         </TabsContent>
@@ -335,28 +259,12 @@ export function StoreDetailPage({ storeId }: { storeId: string }) {
         <TabsContent value="catalog" className="space-y-4 pt-4">
           <Card>
             <CardHeader>
-              <CardTitle>Product Catalog</CardTitle>
-              <CardDescription>Browse and manage your store's product catalog.</CardDescription>
+              <CardTitle>{t("stores.catalog", { defaultValue: "Catalog" })}</CardTitle>
+              <CardDescription>{t("stores.catalogDesc", { defaultValue: "Browse and manage your store's product catalog." })}</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="rounded-md border">
-                <div className="grid grid-cols-5 border-b p-3 font-medium">
-                  <div className="col-span-2">Product</div>
-                  <div>Category</div>
-                  <div>Price</div>
-                  <div>Stock</div>
-                </div>
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <div key={i} className="grid grid-cols-5 border-b p-3 text-sm">
-                    <div className="col-span-2 font-medium">Sample Product {i}</div>
-                    <div>Category {(i % 3) + 1}</div>
-                    <div>${(19.99 * i).toFixed(2)}</div>
-                    <div>{i * 10} in stock</div>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-4 flex justify-center">
-                <Button variant="outline">View All Products</Button>
+              <div className="rounded-md border p-6 text-sm text-muted-foreground">
+                {t("stores.catalogComingSoon", { defaultValue: "Catalog view will appear here once implemented." })}
               </div>
             </CardContent>
           </Card>
@@ -365,45 +273,38 @@ export function StoreDetailPage({ storeId }: { storeId: string }) {
         <TabsContent value="settings" className="space-y-4 pt-4">
           <Card>
             <CardHeader>
-              <CardTitle>Store Settings</CardTitle>
-              <CardDescription>Configure your store settings and connection details.</CardDescription>
+              <CardTitle>{t("stores.settings", { defaultValue: "Store Settings" })}</CardTitle>
+              <CardDescription>{t("stores.settingsDesc", { defaultValue: "Configure your store settings and connection details." })}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="store-name">Store Name</Label>
-                <Input id="store-name" defaultValue={store.name} />
+                <Label htmlFor="store-name">{t("stores.storeName", { defaultValue: "Store Name" })}</Label>
+                <Input id="store-name" defaultValue={name} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="store-url">Store URL</Label>
-                <Input id="store-url" defaultValue={store.url} />
+                <Label htmlFor="store-url">{t("stores.storeUrl", { defaultValue: "Store URL" })}</Label>
+                <Input id="store-url" defaultValue={url} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="api-key">API Key</Label>
-                <Input id="api-key" type="password" defaultValue="••••••••••••••••" />
-                <p className="text-xs text-muted-foreground">
-                  This is your {store.platform} API key used for synchronization.
-                </p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="sync-frequency">Sync Frequency</Label>
+                <Label htmlFor="sync-frequency">{t("stores.syncFrequency", { defaultValue: "Sync Frequency" })}</Label>
                 <Select defaultValue="hourly">
                   <SelectTrigger id="sync-frequency">
-                    <SelectValue placeholder="Select frequency" />
+                    <SelectValue placeholder={t("stores.selectFrequency", { defaultValue: "Select frequency" })} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="15min">Every 15 minutes</SelectItem>
-                    <SelectItem value="hourly">Hourly</SelectItem>
-                    <SelectItem value="daily">Daily</SelectItem>
-                    <SelectItem value="manual">Manual only</SelectItem>
+                    <SelectItem value="15min">{t("stores.freq.15", { defaultValue: "Every 15 minutes" })}</SelectItem>
+                    <SelectItem value="hourly">{t("stores.freq.hourly", { defaultValue: "Hourly" })}</SelectItem>
+                    <SelectItem value="daily">{t("stores.freq.daily", { defaultValue: "Daily" })}</SelectItem>
+                    <SelectItem value="manual">{t("stores.freq.manual", { defaultValue: "Manual only" })}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </CardContent>
             <CardFooter className="flex justify-between">
               <Button variant="outline" className="text-destructive">
-                Disconnect Store
+                {t("stores.disconnect", { defaultValue: "Disconnect Store" })}
               </Button>
-              <Button>Save Changes</Button>
+              <Button>{t("common.save", { defaultValue: "Save Changes" })}</Button>
             </CardFooter>
           </Card>
         </TabsContent>

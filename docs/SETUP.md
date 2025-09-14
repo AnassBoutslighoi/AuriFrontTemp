@@ -72,10 +72,17 @@ Optional analytics/status endpoints used by the UI (provide them in n8n or the U
 
 ## 5) Store integrations (Shopify, WooCommerce, YouCan)
 
-- The UI provides “Connect” buttons which trigger the OAuth install via:
-  - `/api/n8n/shopify/install?return_url=<APP_URL>/store-integration`
-  - `/api/n8n/woocommerce/install?return_url=<APP_URL>/store-integration`
-  - `/api/n8n/youcan/install?return_url=<APP_URL>/store-integration`
+- The UI provides “Connect” buttons which trigger OAuth install via GET query to:
+  - `/api/n8n/shopify/install?return_url=<APP_URL>/stores&shop=<SHOP>.myshopify.com&tenant_id=<TENANT>&store_name=<NAME>`
+  - `/api/n8n/woocommerce/install?return_url=<APP_URL>/stores`
+  - `/api/n8n/youcan/install?return_url=<APP_URL>/stores`
+- Shopify expected query parameters:
+  - `shop` (required): e.g. `mystore.myshopify.com`
+  - `tenant_id` (recommended): current tenant identifier
+  - `store_name` (optional): label to display in dashboard
+  - `return_url` (required): where to navigate after install (typically `<APP_URL>/stores`)
+  - Example:
+    - `/api/n8n/shopify/install?shop=mystore.myshopify.com&tenant_id=tenant_123&store_name=My%20Store&return_url=http://localhost:3000/stores`
 - After a successful OAuth install in n8n, call the `Initial Data Sync` workflow and configure platform webhooks to point to the n8n “real-time webhooks” listed above.
 - The Store Integration page polls:
   - `GET /connections/status` for connection statuses
@@ -126,7 +133,7 @@ Optional analytics/status endpoints used by the UI (provide them in n8n or the U
 - Store hooks: `hooks/n8n.ts`, `hooks/stores.ts`
 - Analytics hooks: `hooks/analytics.ts`
 - Chat hook: `hooks/chat.ts`
-- Store UI: `components/store-integration-page.tsx`
+- Store UI: `components/stores-page.tsx`
 - Dashboard + analytics: `components/dashboard-page.tsx`, `components/analytics-page.tsx`
 - Embedding: `components/embed-code-page.tsx`, `app/embedding/page.tsx`
 - Public widget iframe: `app/widget/iframe/page.tsx`

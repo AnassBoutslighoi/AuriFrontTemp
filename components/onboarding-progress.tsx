@@ -20,7 +20,7 @@ export function OnboardingProgress() {
 
   const steps: Step[] = [
     { title: t("onboarding.steps.createAccount"), completed: true },
-    { title: t("onboarding.steps.connectStore"), completed: isStoreConnected, href: "/store-integration" },
+    { title: t("onboarding.steps.connectStore"), completed: isStoreConnected, href: "/stores" },
     { title: t("onboarding.steps.configureChatbot"), completed: false, href: "/chatbot-configuration" },
     { title: t("onboarding.steps.testChatbot"), completed: false, href: "/chatbot-configuration?tab=test" },
     { title: t("onboarding.steps.goLive"), completed: false, href: "/embedding" },

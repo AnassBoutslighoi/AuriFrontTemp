@@ -1,10 +1,6 @@
-import { DashboardLayout } from "@/components/dashboard-layout"
-import { StoreIntegrationPage } from "@/components/store-integration-page"
+import { redirect } from "next/navigation"
 
 export default function StoreIntegration() {
-  return (
-    <DashboardLayout>
-      <StoreIntegrationPage />
-    </DashboardLayout>
-  )
+  // Legacy route – unified into /stores
+  redirect("/stores")
 }

@@ -96,3 +96,40 @@ export function useStartInitialSync(platform: Platform) {
     },
   });
 }
+
+/**
+ * Stores listing (dynamic data; falls back to [])
+ * Proxy endpoint should return an array of store summaries for current tenant.
+ */
+export type StoreSummary = {
+  id: string;
+  name: string;
+  url: string;
+  platform: Platform;
+  status?: "connected" | "error" | "pending";
+  products?: number;
+  lastSync?: string; // ISO or human string
+  chatbots?: number;
+};
+
+export function useStores() {
+  return useQuery({
+    queryKey: ["stores"],
+    queryFn: () => fetchJSONOr<StoreSummary[]>("/api/n8n/stores/list", []),
+    refetchInterval: 15_000,
+  });
+}
+
+// Single store detail for a given id
+export function useStore(id?: string) {
+  return useQuery({
+    queryKey: ["store", id],
+    queryFn: () =>
+      fetchJSONOr<StoreSummary | null>(
+        id ? `/api/n8n/stores/${encodeURIComponent(id)}` : "",
+        null
+      ),
+    enabled: !!id,
+    refetchInterval: 15_000,
+  });
+}
