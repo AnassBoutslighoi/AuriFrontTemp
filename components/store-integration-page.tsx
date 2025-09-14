@@ -9,6 +9,7 @@ import { Progress } from "@/components/ui/progress"
 import { startShopifyInstall, startWooInstall, startYouCanInstall, useInitialDataSync } from "@/hooks/n8n"
 import { toast } from "@/components/ui/use-toast"
 import { useStoreConnectionsStatus, useSyncLogs, useStartInitialSync } from "@/hooks/stores"
+import { useRouter } from "next/navigation"
 
 function StatusBadge({ connected, error }: { connected: boolean; error?: string }) {
   if (error) {
@@ -42,6 +43,7 @@ function Logs({ platform }: { platform: "shopify" | "woocommerce" | "youcan" }) 
 }
 
 export function StoreIntegrationPage() {
+  const router = useRouter()
   const { mutate: initialSync, isPending } = useInitialDataSync()
   const { data: status } = useStoreConnectionsStatus()
   const { mutateAsync: startWooSync, isPending: wooBusy } = useStartInitialSync("woocommerce")
@@ -108,8 +110,8 @@ export function StoreIntegrationPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" onClick={() => startWooInstall()}>
-                      Install OAuth
+                    <Button variant="outline" size="sm" onClick={() => router.push('/stores')}>
+                      Connect Store
                     </Button>
                     <Button
                       variant="outline"
@@ -153,7 +155,7 @@ export function StoreIntegrationPage() {
                   Link your Shopify store to enable product catalog access and order management for your chatbot.
                 </p>
                 <div className="flex gap-2 mt-6">
-                  <Button onClick={() => startShopifyInstall()}>Connect Shopify</Button>
+                  <Button onClick={() => router.push('/stores')}>Connect Shopify</Button>
                   <Button
                     variant="outline"
                     onClick={() => handleSync("shopify")}
@@ -189,7 +191,7 @@ export function StoreIntegrationPage() {
                   Link your YouCan store to enable product catalog access and order management for your chatbot.
                 </p>
                 <div className="flex gap-2 mt-6">
-                  <Button onClick={() => startYouCanInstall()}>Connect YouCan</Button>
+                  <Button onClick={() => router.push('/stores')}>Connect YouCan</Button>
                   <Button
                     variant="outline"
                     onClick={() => handleSync("youcan")}
