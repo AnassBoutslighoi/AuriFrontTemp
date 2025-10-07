@@ -1,8 +1,10 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useState, useEffect } from "react"
 import Link from "next/link"
 import { useTranslation } from "react-i18next"
+import type { TFunction } from "i18next"
+import { useSearchParams, useRouter } from "next/navigation"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -21,6 +23,15 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
@@ -28,28 +39,76 @@ import { toast } from "@/components/ui/use-toast"
 
 import { Plus, Search, ShoppingBag, ShoppingCart, Store as StoreIcon } from "lucide-react"
 
-import { useStores, type StoreSummary } from "@/hooks/stores"
+import { useStores, type StoreSummary, type StoreStatus, type Platform } from "@/hooks/stores"
 import { useTenant } from "@/components/tenant-provider"
 import { startShopifyInstallRobust, startWooInstall, startYouCanInstall } from "@/hooks/n8n"
 
-const AddStoreSchema = z.object({
-  name: z.string().min(2, "Name is too short"),
-  url: z
-    .string()
-    .min(3, "URL is required")
-    .regex(/^[a-zA-Z0-9.\-:/]+$/, "Invalid URL"),
-  platform: z.enum(["shopify", "woocommerce", "youcan"]),
-})
+const createAddStoreSchema = (t: TFunction) =>
+  z.object({
+    name: z.string().min(2, t("stores.errors.nameTooShort", "Name is too short")),
+    url: z
+      .string()
+      .min(3, t("stores.errors.urlRequired", "URL is required"))
+      .regex(/^[a-zA-Z0-9.\-:/]+$/, t("stores.errors.invalidUrl", "Invalid URL")),
+    platform: z.enum(["shopify", "woocommerce", "youcan"]),
+  })
 
-type AddStoreInput = z.infer<typeof AddStoreSchema>
+type AddStoreInput = z.infer<ReturnType<typeof createAddStoreSchema>>
 
 export function StoresPage() {
   const { t } = useTranslation()
-  const { data: stores = [] } = useStores()
   const { tenantId } = useTenant()
+  const [tab, setTab] = useState<"all" | "shopify" | "woocommerce" | "youcan">("all")
+  const [status, setStatus] = useState<StoreStatus>("all")
+  const { data: allStores = [] } = useStores()
+  const { data: stores = [] } = useStores({ platform: tab === "all" ? "all" : (tab as Platform), status })
+  const searchParams = useSearchParams()
+  const router = useRouter()
 
   const [searchQuery, setSearchQuery] = useState("")
   const [isAddStoreOpen, setIsAddStoreOpen] = useState(false)
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false)
+  const [connectedStoreName, setConnectedStoreName] = useState("")
+
+  // Handle redirect from OAuth flow
+  useEffect(() => {
+    const status = searchParams.get("status")
+    const store = searchParams.get("store")
+    const tenantIdParam = searchParams.get("tenant_id")
+
+    if (status === "connected" && store && tenantIdParam) {
+      // Show success dialog and toast
+      setConnectedStoreName(store)
+      setShowSuccessDialog(true)
+      
+      toast({
+        title: t("stores.connectionSuccess", "Store Connected Successfully!"),
+        description: t("stores.connectionSuccessDescription", `${store} has been connected to your account.`),
+        variant: "default",
+      })
+
+      // Clean up URL parameters
+      const url = new URL(window.location.href)
+      url.searchParams.delete("status")
+      url.searchParams.delete("store")
+      url.searchParams.delete("tenant_id")
+      router.replace(url.pathname + url.search)
+    } else if (status === "error") {
+      // Show error message
+      toast({
+        title: t("stores.connectionError", "Connection Failed"),
+        description: t("stores.connectionErrorDescription", "Failed to connect the store. Please try again."),
+        variant: "destructive",
+      })
+
+      // Clean up URL parameters
+      const url = new URL(window.location.href)
+      url.searchParams.delete("status")
+      url.searchParams.delete("store")
+      url.searchParams.delete("tenant_id")
+      router.replace(url.pathname + url.search)
+    }
+  }, [searchParams, router, t])
 
   const filtered = useMemo(() => {
     const q = searchQuery.trim().toLowerCase()
@@ -58,14 +117,14 @@ export function StoresPage() {
   }, [stores, searchQuery])
 
   const counts = useMemo(() => {
-    const by = (p: string) => stores.filter((s) => s.platform === p).length
+    const by = (p: string) => allStores.filter((s) => s.platform === p).length
     return {
-      all: stores.length,
+      all: allStores.length,
       shopify: by("shopify"),
       woocommerce: by("woocommerce"),
       youcan: by("youcan"),
     }
-  }, [stores])
+  }, [allStores])
 
   return (
     <div className="space-y-6">
@@ -99,9 +158,25 @@ export function StoresPage() {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
+
+        <div className="w-48">
+          <Select value={status} onValueChange={(v) => setStatus(v as StoreStatus)}>
+            <SelectTrigger>
+              <SelectValue placeholder={t("stores.status.all", "All")} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t("stores.status.all", "All")}</SelectItem>
+              <SelectItem value="active">{t("stores.status.active", "Active")}</SelectItem>
+              <SelectItem value="inactive">{t("stores.status.inactive", "Inactive")}</SelectItem>
+              <SelectItem value="connecting">{t("stores.status.connecting", "Connecting")}</SelectItem>
+              <SelectItem value="syncing">{t("stores.status.syncing", "Syncing")}</SelectItem>
+              <SelectItem value="error">{t("stores.status.error", "Error")}</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
-      <Tabs defaultValue="all">
+      <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
         <TabsList>
           <TabsTrigger value="all">
             {t("stores.tabs.all", "All Stores")} ({counts.all})
@@ -142,11 +217,47 @@ export function StoresPage() {
           />
         </TabsContent>
       </Tabs>
+
+      {/* Success Dialog */}
+      <AlertDialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100">
+                <svg
+                  className="h-6 w-6 text-green-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+              </div>
+              {t("stores.connectionSuccess", "Store Connected Successfully!")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("stores.connectionSuccessDetail", `Great! Your store "${connectedStoreName}" has been successfully connected to your account. You can now start using it with your chatbots.`)}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setShowSuccessDialog(false)}>
+              {t("common.gotIt", "Got it")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
 
 function StoreGrid({ items, onEmptyClick }: { items: StoreSummary[]; onEmptyClick: () => void }) {
+  const { t } = useTranslation()
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
       {items.map((store) => (
@@ -164,13 +275,15 @@ function StoreGrid({ items, onEmptyClick }: { items: StoreSummary[]; onEmptyClic
             }
           }}
           className="flex flex-col items-center justify-center border-dashed p-6 cursor-pointer hover:bg-muted/30 focus:outline-none focus:ring-2 focus:ring-primary"
-          title="Add Store"
+          title={t("stores.addStore", "Add Store")}
         >
           <div className="mb-4 rounded-full bg-primary/10 p-3">
             <Plus className="h-6 w-6 text-primary" />
           </div>
-          <h3 className="mb-1 text-lg font-medium">No Stores</h3>
-          <p className="mb-4 text-center text-sm text-muted-foreground">Connect your first store to get started</p>
+          <h3 className="mb-1 text-lg font-medium">{t("stores.noStoresTitle", "No Stores")}</h3>
+          <p className="mb-4 text-center text-sm text-muted-foreground">
+            {t("stores.noStoresDescription", "Connect your first store to get started")}
+          </p>
         </Card>
       )}
     </div>
@@ -178,6 +291,7 @@ function StoreGrid({ items, onEmptyClick }: { items: StoreSummary[]; onEmptyClic
 }
 
 function StoreCard({ store }: { store: StoreSummary }) {
+  const { t } = useTranslation()
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -189,12 +303,18 @@ function StoreCard({ store }: { store: StoreSummary }) {
             <CardTitle>{store.name}</CardTitle>
           </div>
           <Badge
-            variant={store.status === "connected" ? "secondary" : store.status === "error" ? "destructive" : "outline"}
+            variant={store.status === "active" ? "secondary" : store.status === "error" ? "destructive" : "outline"}
             className={
-              store.status === "connected" ? "bg-green-500 text-white border-transparent" : undefined
+              store.status === "active"
+                ? "bg-green-500 text-white border-transparent"
+                : store.status === "connecting" || store.status === "syncing"
+                ? "bg-blue-500 text-white border-transparent"
+                : undefined
             }
           >
-            {store.status === "connected" ? "Connected" : store.status === "error" ? "Error" : "Pending"}
+            {store.status
+              ? t(`stores.status.${store.status}`, store.status)
+              : t("stores.status.inactive", "Inactive")}
           </Badge>
         </div>
         <CardDescription>{store.url}</CardDescription>
@@ -202,24 +322,24 @@ function StoreCard({ store }: { store: StoreSummary }) {
       <CardContent>
         <div className="space-y-2 text-sm">
           <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Platform:</span>
+            <span className="text-muted-foreground">{t("stores.platformLabel", "Platform:")}</span>
             <span className="font-medium capitalize">{store.platform}</span>
           </div>
           {typeof store.products === "number" && (
             <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Products:</span>
+              <span className="text-muted-foreground">{t("stores.productsLabel", "Products:")}</span>
               <span className="font-medium">{store.products}</span>
             </div>
           )}
           {store.lastSync && (
             <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Last Sync:</span>
+              <span className="text-muted-foreground">{t("stores.lastSyncLabel", "Last Sync:")}</span>
               <span className="font-medium">{store.lastSync}</span>
             </div>
           )}
           {typeof store.chatbots === "number" && (
             <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Chatbots:</span>
+              <span className="text-muted-foreground">{t("stores.chatbotsLabel", "Chatbots:")}</span>
               <span className="font-medium">{store.chatbots}</span>
             </div>
           )}
@@ -227,7 +347,7 @@ function StoreCard({ store }: { store: StoreSummary }) {
       </CardContent>
       <CardFooter>
         <Button asChild className="w-full">
-          <Link href={`/stores/${store.id}`}>Manage Store</Link>
+          <Link href={`/stores/${store.id}`}>{t("stores.manageStore", "Manage Store")}</Link>
         </Button>
       </CardFooter>
     </Card>
@@ -247,7 +367,7 @@ function AddStoreDialog({
 }) {
   const { t } = useTranslation()
   const form = useForm<AddStoreInput>({
-    resolver: zodResolver(AddStoreSchema),
+    resolver: zodResolver(createAddStoreSchema(t)),
     defaultValues: {
       name: "",
       url: "",
@@ -325,7 +445,10 @@ function AddStoreDialog({
                 <FormItem>
                   <FormLabel>{t("stores.storeName", "Store Name")}</FormLabel>
                   <FormControl>
-                    <Input placeholder="My Awesome Store" {...field} />
+                    <Input
+                      placeholder={t("stores.storeNamePlaceholder", "My Awesome Store")}
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -339,7 +462,13 @@ function AddStoreDialog({
                 <FormItem>
                   <FormLabel>{t("stores.storeUrl", "Store URL / Domain")}</FormLabel>
                   <FormControl>
-                    <Input placeholder="mystore.com or mystore.myshopify.com" {...field} />
+                    <Input
+                      placeholder={t(
+                        "stores.storeUrlPlaceholder",
+                        "mystore.com or mystore.myshopify.com"
+                      )}
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

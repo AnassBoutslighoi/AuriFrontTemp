@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { CheckCircle2, RefreshCw, ShoppingBag, ShoppingCart, Store as StoreIcon, Plus, MessageSquare } from "lucide-react"
+import { CheckCircle2, RefreshCw, ShoppingBag, ShoppingCart, Store as StoreIcon, Plus, MessageSquare, Loader2, XCircle } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -23,22 +23,63 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 
-import { useStore } from "@/hooks/stores"
+import { useStore, useStartStoreSync, useLatestStoreSyncJob, useSyncJobStatus, Platform } from "@/hooks/stores"
 import { useStoreChatbots } from "@/hooks/chatbots"
 
 export function StoreDetailPage({ storeId }: { storeId: string }) {
   const { t } = useTranslation()
   const [isAddChatbotOpen, setIsAddChatbotOpen] = useState(false)
+  const [currentSyncId, setCurrentSyncId] = useState<string | null>(null)
 
-  const { data: store } = useStore(storeId)
+  const { data: store, refetch: refetchStore } = useStore(storeId)
   const { data: chatbots = [] } = useStoreChatbots(storeId)
+  
+  // Sync functionality
+  const startSync = useStartStoreSync()
+  const { data: latestSyncJob } = useLatestStoreSyncJob(storeId)
+  const { data: currentSyncStatus } = useSyncJobStatus(currentSyncId || undefined)
+  
+  // Use current sync ID from either running sync or latest job
+  const activeSyncId = currentSyncId || (latestSyncJob?.status === 'running' ? latestSyncJob.sync_id : null)
+  const syncStatus = currentSyncStatus || latestSyncJob
+  
+  // Handle sync initiation
+  const handleSyncStore = async () => {
+    if (!store?.platform) return
+    
+    try {
+      const result = await startSync.mutateAsync({
+        storeId,
+        platform: store.platform as Platform,
+        priority: 'normal'
+      })
+      
+      if (result.sync_id) {
+        setCurrentSyncId(result.sync_id)
+      }
+      
+      // Refetch store data to get updated sync status
+      refetchStore()
+    } catch (error) {
+      console.error('Failed to start sync:', error)
+    }
+  }
+  
+  // Determine if sync is currently running
+  const isSyncing = syncStatus?.status === 'running' || startSync.isPending
+  const syncProgress = syncStatus?.progress || 0
 
   const name = store?.name || t("stores.unknown", { defaultValue: "Unknown Store" })
   const url = store?.url || "—"
-  const platform = store?.platform || "unknown"
+  const platform = (typeof store?.platform === 'string' ? store.platform : 'unknown').toLowerCase()
   const products = typeof store?.products === "number" ? store?.products : 0
   const lastSync = store?.lastSync || "—"
   const status = store?.status || "pending"
+
+  function formatPlatformName(p: string): string {
+    if (!p || typeof p !== 'string') return 'Unknown'
+    return p.charAt(0).toUpperCase() + p.slice(1)
+  }
 
   function getPlatformIcon(p: string) {
     switch (p) {
@@ -54,12 +95,16 @@ export function StoreDetailPage({ storeId }: { storeId: string }) {
   }
 
   const headerBadge =
-    status === "connected" ? (
+    status === "active" ? (
       <Badge variant="secondary" className="bg-green-500 text-white border-transparent">
-        {t("stores.connected", { defaultValue: "Connected" })}
+        {t("stores.active", { defaultValue: "Active" })}
       </Badge>
     ) : status === "error" ? (
       <Badge variant="destructive">{t("common.error", { defaultValue: "Error" })}</Badge>
+    ) : status === "syncing" ? (
+      <Badge variant="secondary" className="bg-blue-500 text-white border-transparent">
+        {t("stores.syncing", { defaultValue: "Syncing" })}
+      </Badge>
     ) : (
       <Badge variant="outline">{t("common.pending", { defaultValue: "Pending" })}</Badge>
     )
@@ -74,14 +119,21 @@ export function StoreDetailPage({ storeId }: { storeId: string }) {
           <div>
             <h2 className="text-3xl font-bold tracking-tight">{name}</h2>
             <p className="text-muted-foreground">
-              {url} • {platform.charAt(0).toUpperCase() + platform.slice(1)}
+              {url} • {formatPlatformName(platform)}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline">
-            <RefreshCw className="mr-2 h-4 w-4" />
-            {t("stores.syncNow", { defaultValue: "Sync Store" })}
+          <Button 
+            variant="outline" 
+            onClick={handleSyncStore}
+            disabled={isSyncing}
+          >
+            <RefreshCw className={`mr-2 h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
+            {isSyncing 
+              ? t("stores.syncing", { defaultValue: "Syncing..." })
+              : t("stores.syncNow", { defaultValue: "Sync Store" })
+            }
           </Button>
           <Dialog open={isAddChatbotOpen} onOpenChange={setIsAddChatbotOpen}>
             <DialogTrigger asChild>
@@ -148,7 +200,11 @@ export function StoreDetailPage({ storeId }: { storeId: string }) {
               <CardContent>
                 <div className="text-2xl font-bold">{products}</div>
                 <p className="text-xs text-muted-foreground">
-                  {t("stores.lastSynced", { defaultValue: "Last synced" })}: {lastSync}
+                  {t("stores.lastSynced", { defaultValue: "Last synced" })}: {
+                    latestSyncJob?.completed_at 
+                      ? new Date(latestSyncJob.completed_at).toLocaleDateString()
+                      : lastSync
+                  }
                 </p>
               </CardContent>
             </Card>
@@ -168,12 +224,41 @@ export function StoreDetailPage({ storeId }: { storeId: string }) {
               <CardContent className="space-y-2">
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-medium">{t("stores.catalog", { defaultValue: "Catalog" })}</p>
-                  <p className="text-sm font-medium">—</p>
+                  <p className="text-sm font-medium">
+                    {currentSyncStatus?.status === 'running' 
+                      ? `${Math.round(currentSyncStatus.progress || 0)}%` 
+                      : products || "—"}
+                  </p>
                 </div>
-                <Progress value={products ? 100 : 0} />
+                <Progress 
+                  value={
+                    currentSyncStatus?.status === 'running' 
+                      ? currentSyncStatus.progress || 0
+                      : products ? 100 : 0
+                  } 
+                />
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <CheckCircle2 className="h-4 w-4 text-green-500" />
-                  <span>{t("stores.syncedProducts", { defaultValue: "Products synced", count: products })}</span>
+                  {currentSyncStatus?.status === 'running' ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+                      <span>{t("stores.syncing", { defaultValue: "Syncing products..." })}</span>
+                    </>
+                  ) : currentSyncStatus?.status === 'completed' ? (
+                    <>
+                      <CheckCircle2 className="h-4 w-4 text-green-500" />
+                      <span>{t("stores.syncedProducts", { defaultValue: "Products synced", count: products })}</span>
+                    </>
+                  ) : currentSyncStatus?.status === 'failed' ? (
+                    <>
+                      <XCircle className="h-4 w-4 text-red-500" />
+                      <span>{t("stores.syncFailed", { defaultValue: "Sync failed" })}</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="h-4 w-4 text-green-500" />
+                      <span>{t("stores.syncedProducts", { defaultValue: "Products synced", count: products })}</span>
+                    </>
+                  )}
                 </div>
               </CardContent>
             </Card>

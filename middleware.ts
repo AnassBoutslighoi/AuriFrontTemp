@@ -1,11 +1,14 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
 // Only these are public. Everything else must be authenticated.
+// Allow n8n proxy endpoints to be publicly reachable so the proxy can forward
+// a Bearer header (Clerk token if present, or placeholder) to n8n.
 const isPublicRoute = createRouteMatcher([
   "/sign-in(.*)",
   "/sign-up(.*)",
   "/favicon.ico",
   "/widget(.*)",
+  "/api/n8n(.*)",
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
